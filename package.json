@@ -8,7 +8,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "local": "ts-node ./src/cli.ts"
+    "local": "ts-node ./src/cli.ts",
+    "test": "tsc && node dist/cli.js --specLocation=../examples/example3*.spec.js"
   },
   "keywords": [],
   "author": "Bozhidar Dryanovski",
