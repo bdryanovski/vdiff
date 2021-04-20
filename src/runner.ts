@@ -60,7 +60,7 @@ function fdescribe(description: string, method: CallbackMethod) {
   spec.addDescribe(description, method, true)
 }
 
-function ignoreCode(description: string, method: CallbackMethod) {
+function ignoreCode(_description: string, _method: CallbackMethod) {
   // This code won't be evaluated at all.
 }
 

@@ -13,14 +13,14 @@ export class DotReporter implements Reporter {
     }
   }
 
-  describe(name: string) {}
+  describe(_name: string) {}
 
-  fail(test: any, error: any) {
+  fail(_test: any, _error: any) {
     process.stdout.write('X')
     this.countLines()
   }
 
-  success(name: string) {
+  success(_name: string) {
     process.stdout.write('.')
     this.countLines()
   }
