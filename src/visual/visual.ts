@@ -1,6 +1,6 @@
 import fs from 'mz/fs';
 import mkdirp from 'mkdirp';
-import puppeteer from 'puppeteer';
+import puppeteer, { Page, Browser } from 'puppeteer';
 import path from 'path';
 // @ts-ignore - missing d.ts
 import compareImages from 'resemblejs/compareImages';
@@ -83,14 +83,33 @@ export async function createBrowser(incognito = true) {
   return await puppy.createIncognitoBrowserContext();
 }
 
-export async function goto(url: string, puppet: any) {
-  const page = await puppet.newPage();
-  await page.goto(url, { waitUntil: ['load', 'domcontentloaded'] });
-
-  return page;
+export async function goto(url: string, puppet: Browser): Promise<Page> {
+  try {
+    const page: Page = await puppet.newPage();
+    await page.goto(url, { waitUntil: ['load', 'domcontentloaded'] });
+    return page;
+  } catch (couldNotVisit) {
+    console.log(`Could not open: ${url}`)
+    throw couldNotVisit;
+  }
 }
 
-export async function emptyPage(puppet: any) {
+export async function visitAndCompareWithBase(
+  url: string,
+  selector: string,
+  snapshotName: string,
+  browser: Browser
+): Promise<void> {
+  const page = await goto(url, browser)
+  const screenshot = await Screenshot({
+    name: snapshotName,
+    selector: selector
+  }, page);
+  await page.close(); // we don't need the page object anymore.
+  await expectToMatchBase(screenshot)
+}
+
+export async function emptyPage(puppet: Browser): Promise<Page> {
   try {
     return await puppet.newPage();
   } catch (failToCreatePage) {
@@ -100,7 +119,7 @@ export async function emptyPage(puppet: any) {
 
 export async function Screenshot(
   params: { name: string, selector?: any; },
-  page: any,
+  page: Page,
   // By default read global prop, but could be change if needed
   overwrite = visualContext.updateSnapshots
 ): Promise<string> {
@@ -129,11 +148,18 @@ export async function Screenshot(
   if (params.selector) {
     await page.waitForSelector(params.selector);
     const selectorDOM = await page.$(params.selector);
-    const clipZone = await selectorDOM.boundingBox();
-    await page.screenshot({
-      path: path.join(visualContext.currentPath, imageName),
-      clipZone
-    });
+    if (selectorDOM) {
+      // setting as any to skip one `if` block
+      const clipZone: any = await selectorDOM.boundingBox();
+
+      await page.screenshot({
+        path: path.join(visualContext.currentPath, imageName),
+        clip: clipZone
+      });
+    } else {
+      throw new Error(`Selector ${params.selector} was not found`);
+    }
+
   } else {
     // Fullscreen page
     await page.screenshot({
@@ -176,17 +202,16 @@ function anyToImageName(url: string): string {
   return `${s}.png`;
 }
 
-async function isImageInBase(image: string, overwrite = false) {
+async function isImageInBase(image: string, overwrite = false): Promise<void> {
   if (!fs.existsSync(path.join(visualContext.basePath, image)) || overwrite === true) {
     await fs.copyFileSync(
       path.join(visualContext.currentPath, image),
       path.join(visualContext.basePath, image)
     );
-    return;
   }
 }
 
-export async function createDiffImage(buffer: any, name: string) {
+export async function createDiffImage(buffer: any, name: string): Promise<void> {
   await fs.writeFile(path.join(visualContext.diffPath, name), buffer);
 }
 
@@ -199,7 +224,7 @@ export async function imageFrom(name: string, type: "base" | "diff" | "current")
   return await fs.readFile(path.join(f[type], name));
 }
 
-export async function expectToMatchBase(testCondition: string) {
+export async function expectToMatchBase(testCondition: string): Promise<void> {
   // testCondition must be image name.
   const sideA = await imageFrom(testCondition as string, 'base');
   const sideB = await imageFrom(testCondition as string, 'current');
@@ -227,5 +252,6 @@ global.VisualDiff = {
   goto: goto,
   close: close,
   emptyPage: emptyPage,
-  expectToMatchBase: expectToMatchBase
+  expectToMatchBase: expectToMatchBase,
+  visitAndCompareWithBase: visitAndCompareWithBase
 };

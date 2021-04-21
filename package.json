@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc",
     "local": "ts-node ./src/cli.ts",
-    "test": "tsc && node dist/cli.js --specLocation=../examples/example3*.spec.js"
+    "test": "tsc && node dist/cli.js --specs=../examples/example3*.vspec.js"
   },
   "keywords": [],
   "author": "Bozhidar Dryanovski",

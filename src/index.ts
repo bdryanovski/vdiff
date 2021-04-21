@@ -18,7 +18,7 @@ import './visual/visual'
 import { setupVisualTests } from './visual/visual';
 
 export const defaultOptions = {
-  specLocation: './**/*.spec.js',
+  specs: './**/*.vspec.js',
   reporter: 'spec',
   updateSnapshots: false,
   basePath: './images/base',
@@ -27,24 +27,37 @@ export const defaultOptions = {
   showBanner: true,
 }
 
+const reporterList: Record<string, any> = {
+  'spec': SpecReporter,
+  'dots': DotReporter
+}
+
 export async function run(userOptions = {}) {
   const options = { ...defaultOptions, ...userOptions };
   const initialTime = new Date().getTime();
 
   const specReports: any[] = [];
 
-  const files = glob.sync(path.join(__dirname, options.specLocation))
+  const files = glob.sync(path.join(process.cwd(), options.specs))
+
+  console.log(`\nLocated ${files.length} specs.\n`)
 
   const filesLength = files.length;
   /** Every spec files is it's own run  */
   for (let fileIndex = 0; fileIndex < filesLength; fileIndex++) {
 
     const specName = files[fileIndex];
+
+    console.log(`Running ${specName}`)
+
     const ctx = new Context(specName, options);
 
-    ctx.reporter = (options.reporter === 'spec')
-      ? new SpecReporter()
-      : new DotReporter();
+    const foundReporter = reporterList[options.reporter];
+    if (foundReporter) {
+      ctx.reporter = new foundReporter()
+    } else {
+      ctx.reporter = new SpecReporter()
+    }
 
     await setupVisualTests(ctx.filename, {
       basePath: options.basePath,
